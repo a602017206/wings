@@ -234,12 +234,21 @@ func (c *SFTPServer) makeCredentialsRequest(conn ssh.ConnMetadata, t remote.Sftp
 	}
 
 	logger.WithField("server", resp.Server).Debug("credentials validated and matched to server instance")
+	//resp.Permissions 去掉 file.read-content
+	for i, permission := range resp.Permissions {
+		if permission == "file.read-content" {
+			resp.Permissions[i] = "file.read"
+		}
+	}
+	join := strings.Join(resp.Permissions, ",")
+	join = strings.ReplaceAll(join, "*", "file.read,file.create,file.update,file.delete")
+	logger.Info("permissions :: " + join)
 	permissions := ssh.Permissions{
 		Extensions: map[string]string{
 			"ip":          conn.RemoteAddr().String(),
 			"uuid":        resp.Server,
 			"user":        resp.User,
-			"permissions": strings.Join(resp.Permissions, ","),
+			"permissions": join,
 		},
 	}
 

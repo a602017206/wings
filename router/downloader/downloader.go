@@ -45,6 +45,12 @@ func init() {
 		if ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() || ip.IsInterfaceLocalMulticast() {
 			return c, errors.WithStack(ErrInternalResolution)
 		}
+		// 在检查黑名单之前检查白名单
+		for _, allowedIP := range whitelist {
+			if ip.Equal(allowedIP) {
+				return c, nil // 如果IP在白名单中，直接返回，允许请求通过
+			}
+		}
 		for _, block := range internalRanges {
 			if !block.Contains(ip) {
 				continue
@@ -72,6 +78,12 @@ func init() {
 			return http.ErrUseLastResponse
 		},
 	}
+}
+
+// 定义白名单
+var whitelist = []net.IP{
+	net.ParseIP("192.168.2.9"), // 示例白名单IP
+	// 添加更多白名单IP
 }
 
 var instance = &Downloader{
