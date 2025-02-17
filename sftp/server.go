@@ -239,6 +239,10 @@ func (c *SFTPServer) makeCredentialsRequest(conn ssh.ConnMetadata, t remote.Sftp
 		if permission == "file.read-content" {
 			resp.Permissions[i] = "file.read"
 		}
+		// minekuai 新增的 下载权限
+		if permission == "minekuai.download" {
+			resp.Permissions[i] = "file.read-content"
+		}
 	}
 	join := strings.Join(resp.Permissions, ",")
 	join = strings.ReplaceAll(join, "*", "file.read,file.create,file.update,file.delete")
