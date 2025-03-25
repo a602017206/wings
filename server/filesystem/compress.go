@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	iofs "io/fs"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
@@ -155,12 +156,65 @@ func (fs *Filesystem) DecompressFile(ctx context.Context, dir string, file strin
 		return err
 	}
 
-	return fs.extractStream(ctx, extractStreamOptions{
-		FileName:  file,
-		Directory: dir,
-		Format:    format,
-		Reader:    input,
-	})
+	// 新增系统命令解压路径
+	switch format2 := filepath.Ext(file); format2 {
+	case ".zip", ".tar", ".gz", ".xz", ".rar":
+		return fs.extractWithSystemCommand(ctx, dir, file)
+	default:
+		// 保留原有 archiver 逻辑处理非常见格式
+		return fs.extractStream(ctx, extractStreamOptions{
+			FileName:  file,
+			Directory: dir,
+			Format:    format,
+			Reader:    input,
+		})
+	}
+}
+
+// 新增系统命令解压方法
+func (fs *Filesystem) extractWithSystemCommand(ctx context.Context, dir string, file string) error {
+	cmd := exec.CommandContext(ctx, getCommandByExt(file), getCommandArgs(file)...)
+	cmd.Dir = dir
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return errors.Wrap(err, string(output))
+	}
+	return nil
+}
+
+// 获取对应解压命令
+func getCommandByExt(filename string) string {
+	switch filepath.Ext(filename) {
+	case ".zip":
+		return "unzip"
+	case ".tar":
+		return "tar"
+	case ".gz":
+		return "tar"
+	case ".xz":
+		return "tar"
+	case ".rar":
+		return "unrar"
+	default:
+		return ""
+	}
+}
+
+// 获取命令参数
+func getCommandArgs(filename string) []string {
+	ext := filepath.Ext(filename)
+	switch ext {
+	case ".zip":
+		return []string{"-o", filename} // -o: overwrite without prompt
+	case ".tar":
+		return []string{"xvf", filename}
+	case ".gz", ".xz":
+		return []string{"zxvf", filename}
+	case ".rar":
+		return []string{"x", "-y", filename}
+	default:
+		return []string{}
+	}
 }
 
 // ExtractStreamUnsafe .
@@ -263,8 +317,8 @@ func (fs *Filesystem) extractStream(ctx context.Context, opts extractStreamOptio
 		if f.IsDir() {
 			return nil
 		}
+		// 当前代码已处理的 zip-slip 防御机制需要保留
 		p := filepath.Join(opts.Directory, f.NameInArchive)
-		// If it is ignored, just don't do anything with the file and skip over it.
 		if err := fs.IsIgnored(p); err != nil {
 			return nil
 		}

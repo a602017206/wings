@@ -236,7 +236,7 @@ func (c *SFTPServer) makeCredentialsRequest(conn ssh.ConnMetadata, t remote.Sftp
 	logger.WithField("server", resp.Server).Debug("credentials validated and matched to server instance")
 	//resp.Permissions 去掉 file.read-content
 	for i, permission := range resp.Permissions {
-		logger.Info("permissions aaa " + strconv.Itoa(i) + " :: " + permission)
+		logger.Info("permissions " + strconv.Itoa(i) + " :: " + permission)
 		if permission == "file.read-content" {
 			resp.Permissions[i] = "file.read"
 		}
